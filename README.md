@@ -1,54 +1,126 @@
-# gilasw-challenge
+# Headless DatePicker
 
-This template should help get you started developing with Vue 3 in Vite.
+A fully functional DatePicker built for the GilaSoftware technical challenge.
+The calendar logic is a zero-dependency TypeScript engine; Vue 3 is purely a rendering layer.
 
-## Recommended IDE Setup
+---
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Architecture
 
-## Recommended Browser Setup
+### State Management: Engine, Composable, Component
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+The project is split into three clear layers:
 
-## Type Support for `.vue` Imports in TS
+| Layer | File | Knows about |
+|---|---|---|
+| **Engine** | `src/engine/DatePickerEngine.ts` | Pure TS, zero imports |
+| **Bridge** | `src/composables/useDatePicker.ts` | Engine + Vue reactivity |
+| **UI** | `src/components/DatePicker/*.vue` | Only the composable |
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+**How it works:**
 
-## Customize configuration
+1. `DatePickerEngine` is a plain class that owns all calendar state (current view month, selected date, open/closed) as regular class properties. It exposes methods that mutate state and a `getState()` method that returns a snapshot.
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+2. `useDatePicker` is the only file that imports both the engine and Vue. It holds a single `ref<DatePickerState>` and wraps every engine method:
+   ```ts
+   const sync = () => { state.value = engine.getState() }
+   const goToNextMonth = () => { engine.goToNextMonth(); sync() }
+   ```
+   This pattern keeps the engine 100% framework-agnostic. It can be used in any JS context.
 
-## Project Setup
+3. Vue components import the composable and never touch the engine directly. `DatePicker.vue` owns click-outside and keyboard (Esc) listeners; the engine and composable have no DOM awareness.
 
-```sh
-yarn
+**Why `getState()` returns a new object each time:** Vue's `ref` detects changes by reference equality at the top level. If the same object were mutated in place, `state.value = engine.getState()` would assign the same reference and Vue would not re-render. Returning a fresh object (with a spread copy of the cells array) guarantees Vue always sees a change.
+
+**Why `v-show` instead of `v-if` on the popover:** `v-if` tears down and recreates the DOM on each open/close. `v-show` keeps the DOM alive, which simplifies focus management and avoids layout flicker.
+
+---
+
+### Temporal API: Observations
+
+The engine uses `Temporal.PlainDate` and `Temporal.PlainYearMonth` exclusively. No legacy `Date` object is used in calendar logic.
+
+**What the engine uses:**
+
+| API | Purpose |
+|---|---|
+| `Temporal.Now.plainDateISO()` | Get today's date without time zone ambiguity |
+| `Temporal.PlainYearMonth.from({ year, month })` | Construct the view month |
+| `plainYearMonth.toPlainDate({ day })` | Get any specific day in the month |
+| `plainYearMonth.daysInMonth` | How many days a month has |
+| `plainDate.add / .subtract` | Date arithmetic for grid leading/trailing cells |
+| `plainDate.dayOfWeek` | ISO weekday (Mon=1, Sun=7) |
+| `plainDate.equals(other)` | Date comparison without gotchas |
+| `plainDate.toLocaleString(locale, options)` | Intl-formatted display string |
+
+**Key advantages over `Date`:**
+
+- **No timezone offset bugs.** The classic `new Date('2025-01-01')` parses as midnight UTC and shifts to Dec 31 in UTC-offset timezones, breaking calendar grids. `Temporal.PlainDate` has no time zone concept. It represents a calendar date only.
+- **ISO-correct `dayOfWeek`.** `Date.getDay()` returns 0 for Sunday. `Temporal.PlainDate.dayOfWeek` returns 7 for Sunday (ISO 8601), which makes Monday-first grid alignment trivial: `leadingCount = firstDay.dayOfWeek - 1`.
+- **Immutable arithmetic.** `.add()` and `.subtract()` return new values; there is no risk of accidentally mutating a shared date reference.
+
+**Browser support:** Chrome 121+, Firefox 139+, Safari 17.4+. No polyfill is used (that would violate the zero-dependency requirement). The test environment (jsdom) lacks Temporal, so `src/__tests__/setup.ts` provides a minimal hand-written shim covering only the ~10 methods the engine actually calls.
+
+---
+
+## How to Run
+
+### Prerequisites
+
+- Node.js `^20.19.0` or `>=22.12.0`
+- npm (bundled with Node)
+
+### Install
+
+```bash
+npm install
 ```
 
-### Compile and Hot-Reload for Development
+### Development server
 
-```sh
-yarn dev
+```bash
+npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+Open [http://localhost:5173](http://localhost:5173).
 
-```sh
-yarn build
+### Unit tests
+
+```bash
+npm run test:unit
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### Type check + production build
 
-```sh
-yarn test:unit
+```bash
+npm run build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Lint
 
-```sh
-yarn lint
+```bash
+npm run lint
+```
+
+---
+
+## Project Structure
+
+```
+src/
+  engine/
+    types.ts                 # TypeScript interfaces. The engine's public contract
+    DatePickerEngine.ts      # Pure TS calendar logic. Zero framework imports
+  composables/
+    useDatePicker.ts         # Vue bridge: owns ref<DatePickerState>, syncs after each call
+  components/
+    DatePicker/
+      DatePicker.vue         # Root: input + popover, click-outside, v-model
+      CalendarHeader.vue     # Month/year label + prev/next navigation buttons
+      CalendarGrid.vue       # 6×7 <table role="grid"> of day cells
+  __tests__/
+    setup.ts                 # Minimal Temporal shim for jsdom test environment
+    DatePickerEngine.spec.ts # Engine unit tests (pure TS, no Vue)
+    DatePicker.spec.ts       # Component integration tests
+  App.vue                    # Demo page
 ```
