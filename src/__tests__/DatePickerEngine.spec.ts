@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { DatePickerEngine } from '@/engine/DatePickerEngine'
 
 describe('Grid generation', () => {
