@@ -4,6 +4,7 @@ import type { CalendarGrid } from '@/engine/types'
 
 const props = defineProps<{
   grid: CalendarGrid
+  locale: string
 }>()
 
 defineEmits<{
@@ -43,7 +44,7 @@ const rows = computed(() => {
           }"
           :aria-selected="cell.isSelected || undefined"
           :aria-disabled="cell.isDisabled || undefined"
-          :aria-label="cell.date.toLocaleString('en-US', { dateStyle: 'full' })"
+          :aria-label="cell.date.toLocaleString(locale, { dateStyle: 'full' })"
           :tabindex="cell.isCurrentMonth && !cell.isDisabled ? 0 : -1"
           @click="!cell.isDisabled && $emit('select', cell.date)"
           @keydown.enter.prevent="!cell.isDisabled && $emit('select', cell.date)"

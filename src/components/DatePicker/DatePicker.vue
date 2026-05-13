@@ -105,7 +105,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
         @prev-year="goToPrevYear"
         @next-year="goToNextYear"
       />
-      <CalendarGrid :grid="state.grid" @select="handleSelect" />
+      <CalendarGrid :grid="state.grid" :locale="locale" @select="handleSelect" />
     </div>
   </div>
 </template>
