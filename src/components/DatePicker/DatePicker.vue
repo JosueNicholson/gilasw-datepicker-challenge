@@ -6,7 +6,7 @@ import CalendarGrid from './CalendarGrid.vue'
 
 const props = withDefaults(
   defineProps<{
-    modelValue?: string
+    modelValue?: string | Date
     placeholder?: string
     locale?: string
   }>(),
@@ -32,7 +32,32 @@ const {
   selectDate: engineSelectDate,
   close,
   toggle,
-} = useDatePicker({ locale: props.locale })
+} = useDatePicker({
+  locale: props.locale,
+  initialDate: parseInitialDate(props.modelValue),
+})
+
+function parseInitialDate(value: string | Date): Temporal.PlainDate | undefined {
+  if (!value) return
+  try {
+    if (typeof value === 'string') {
+      return Temporal.PlainDate.from(value)
+    } else {
+      // convert Date to an acceptable string for .from function
+      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+      const instant = value.toTemporalInstant()
+      const zonedDateTime = instant.toZonedDateTimeISO(userTimeZone)
+      const rfc9557String = zonedDateTime.toString()
+
+      return Temporal.PlainDate.from(rfc9557String)
+    }
+  } catch (error) {
+    console.warn(`datepicker invalid initial value: ${value}`)
+    console.error(error)
+    return undefined
+  }
+}
 
 function handleSelect(date: Temporal.PlainDate) {
   engineSelectDate(date)

@@ -10,7 +10,9 @@ const selectedDate = ref('')
     <h1 class="demo-title">Headless DatePicker</h1>
     <p class="demo-subtitle">Vue 3 + Vanilla TS engine + Temporal API</p>
     <DatePicker v-model="selectedDate" placeholder="Select a date" locale="en-US" />
-    <p v-if="selectedDate" class="demo-result">Selected: <strong>{{ selectedDate }}</strong></p>
+    <p v-if="selectedDate" class="demo-result">
+      Selected: <strong>{{ selectedDate }}</strong>
+    </p>
   </main>
 </template>
 
@@ -23,8 +25,11 @@ const selectedDate = ref('')
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #f3f4f6;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: var(--app-color-page-bg);
   display: flex;
   justify-content: center;
   padding: 4rem 1rem;
@@ -39,19 +44,19 @@ body {
 .demo-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--app-color-text-strong);
   margin: 0 0 0.25rem;
 }
 
 .demo-subtitle {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--app-color-text-muted);
   margin: 0 0 1.5rem;
 }
 
 .demo-result {
   margin-top: 1rem;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--app-color-text-body);
 }
 </style>
